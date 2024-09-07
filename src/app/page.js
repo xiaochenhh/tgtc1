@@ -16,9 +16,10 @@ export default function Home() {
   const [selectedImage, setSelectedImage] = useState(null); // 添加状态用于跟踪选中的放大图片
   const [activeTab, setActiveTab] = useState('preview');
   const [uploading, setUploading] = useState(false);
+  const [uploadStatusNum, setUploadStatusNum] = useState(0);
   const [IP, setIP] = useState('');
   const [Total, setTotal] = useState('?');
-  const [selectedOption, setSelectedOption] = useState('tg'); // 初始选择第一个选项
+  const [selectedOption, setSelectedOption] = useState('tgchannel'); // 初始选择第一个选项
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -95,7 +96,7 @@ export default function Home() {
 
   const handleClear = () => {
     setSelectedFiles([]);
-    setUploadStatus('');
+    // setUploadStatus('');
     // setUploadedImages([]);
   };
 
@@ -106,81 +107,60 @@ export default function Home() {
 
   const handleUpload = async (file = null) => {
     setUploading(true);
-
+  
     const filesToUpload = file ? [file] : selectedFiles;
-
+  
     if (filesToUpload.length === 0) {
       toast.error('请选择要上传的文件');
       setUploading(false);
       return;
     }
-
+  
+    const formFieldName = selectedOption === "tencent" ? "media" : "file";
+    let successCount = 0;
+  
     try {
-      const uploaded = [...uploadedImages];
-      let uploadFailed = false;
-      let successCount = 0;
-      let valuename = "file"
-      if (selectedOption == "tencent") {
-        valuename = "media"
-      }
-
-      for (let i = 0; i < filesToUpload.length; i++) {
-        const file = filesToUpload[i];
+      for (const file of filesToUpload) {
         const formData = new FormData();
-
-        formData.append(valuename, file);
-        const fileName = file.name;
+        formData.append(formFieldName, file);
+  
         try {
-          // const response = await fetch(`https://upimg.131213.xyz/upload`, {
           const response = await fetch(`/api/${selectedOption}`, {
             method: 'POST',
             body: formData,
             headers: headers
           });
-
+  
           if (response.ok) {
             const result = await response.json();
-            let imageUrl = result.url
-            // if (selectedOption == "tg") {
-            //   imageUrl = `${origin}/api${result.url}`;
-            // }
-
-            // if (selectedOption == "tencent") {
-            //   imageUrl = result.url;
-            // }
-
-            filesToUpload[i].url = imageUrl;
-            uploaded.push(filesToUpload[i]);
-            selectedFiles.splice(i, 1);
-            i--;
+            file.url = result.url;
+  
+            // 更新 uploadedImages 和 selectedFiles
+            setUploadedImages((prevImages) => [...prevImages, file]);
+            setSelectedFiles((prevFiles) => prevFiles.filter(f => f !== file));
             successCount++;
           } else {
-            toast.error(`上传 ${fileName} 图片时出错`);
-            uploadFailed = true;
+            toast.error(`上传 ${file.name} 图片时出错`);
           }
         } catch (error) {
-          // console.error('上传图片时出错:', error);
-          toast.error(`上传 ${fileName} 图片时出错`);
-          uploadFailed = true;
+          toast.error(`上传 ${file.name} 图片时出错`);
         }
       }
-
-      setUploadedImages(uploaded);
+  
       setUploadedFilesNum(uploadedFilesNum + successCount);
-
-      if (uploadFailed) {
-        toast.error('部分图片上传失败');
-      } else {
-        toast.success(`已成功上传 ${successCount} 张图片`);
-      }
       toast.success(`已成功上传 ${successCount} 张图片`);
-      setUploading(false);
+  
     } catch (error) {
       console.error('上传过程中出现错误:', error);
       toast.error('上传错误');
+    } finally {
       setUploading(false);
     }
   };
+      
+
+  
+
 
 
   const handlePaste = (event) => {
@@ -367,7 +347,7 @@ export default function Home() {
               value={selectedOption} // 将选择框的值绑定到状态中的 selectedOption
               onChange={handleSelectChange} // 当选择框的值发生变化时触发 handleSelectChange 函数
               className="text-lg p-2 border  rounded text-center w-auto sm:w-auto md:w-auto lg:w-auto xl:w-auto  2xl:w-36">
-              <option value="tg">TG</option>
+              {/* <option value="tg">TG</option> */}
               <option value="tgchannel">TG_Channel</option>
 
               <option value="tencent">tencent</option>
@@ -410,7 +390,6 @@ export default function Home() {
                   </button>
                   <button
                     className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center cursor-pointer mx-2"
-
                     onClick={() => handleUpload(file)}
                   >
                     <FontAwesomeIcon icon={faUpload} />
@@ -449,7 +428,7 @@ export default function Home() {
           </div>
           <div className="md:col-span-5 col-span-8">
             <div className="w-full h-10 bg-slate-200 leading-10 px-4 text-center md:text-left">
-              已选择 {selectedFiles.length} 张，共 {getTotalSizeInMB(selectedFiles)} M
+              已选择 {selectedFiles.length} 张，共 {getTotalSizeInMB(selectedFiles)} M;
             </div>
           </div>
           <div className="md:col-span-1 col-span-3">
